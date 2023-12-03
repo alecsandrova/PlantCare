@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_blue/flutter_blue.dart';
+
+const String bluetoothCharacteristicUUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
 
 void main() {
   runApp(MyApp());
@@ -19,10 +24,22 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  // Dummy data for the dropdowns
-  List<String> soilTypes = ["Sol bine drenat pentru plante suculente sau cactuși", "Amestec de pământ de grădină, nisip și material de drenaj", "Amestec de sol pentru plante cu flori sau plante de apartament"];
-  List<String> plantTypes = ["Dragonier (Dracaena marginata)", "Muscata (Pelargonium)", "Planta dinozaur (Zamioculcas zamiifolia) ", "Floarea flamingo (Anthurium mix)", "Crizantema (Chrysanthemum Zembla alb)"];
-  List<String> growthStages = ["Perioada de creștere activă (primăvara și vara)", "Perioada de repaus (toamna și iarna):"];
+  List<String> soilTypes = [
+    "Sol bine drenat pentru plante suculente sau cactuși",
+    "Amestec de pământ de grădină, nisip și material de drenaj",
+    "Amestec de sol pentru plante cu flori sau plante de apartament"
+  ];
+  List<String> plantTypes = [
+    "Dragonier (Dracaena marginata)",
+    "Muscata (Pelargonium)",
+    "Planta dinozaur (Zamioculcas zamiifolia) ",
+    "Floarea flamingo (Anthurium mix)",
+    "Crizantema (Chrysanthemum Zembla alb)"
+  ];
+  List<String> growthStages = [
+    "Perioada de creștere activă (primăvara și vara)",
+    "Perioada de repaus (toamna și iarna):"
+  ];
 
   String? selectedSoil;
   String? selectedPlant;
@@ -31,22 +48,83 @@ class _MyHomePageState extends State<MyHomePage> {
   TextEditingController plantController = TextEditingController();
   bool showPlantSuggestions = false;
 
+  FlutterBlue flutterBlue = FlutterBlue.instance;
+  BluetoothDevice? targetDevice;
+  BluetoothCharacteristic? characteristic;
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
-  void dispose() {
-    plantController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    initBluetooth();
   }
 
-  List<String> filterPlantOptions(String query) {
-    if (query.isEmpty) {
-      return [];
-    }
-    return plantTypes.where((plant) => plant.toLowerCase().contains(query.toLowerCase())).toList();
+  Future<void> initBluetooth() async {
+    await flutterBlue.isOn;
+    flutterBlue.scanResults.listen((List<ScanResult> results) {
+      for (ScanResult result in results) {
+        if (result.device.name == 'YourArduinoBluetoothName') {
+          setState(() {
+            targetDevice = result.device;
+          });
+          return;
+        }
+      }
+    });
+
+    targetDevice?.connect();
+    targetDevice?.state.listen((BluetoothDeviceState state) {
+      if (state == BluetoothDeviceState.connected) {
+        discoverServices();
+      }
+    });
+  }
+
+  Future<void> discoverServices() async {
+    List<BluetoothService> services = await targetDevice!.discoverServices();
+    services.forEach((service) {
+      service.characteristics.forEach((char) {
+        print('Characteristic UUID: ${char.uuid}');
+        if (char.uuid.toString() == bluetoothCharacteristicUUID) {
+          setState(() {
+            characteristic = char;
+          });
+
+          // Listen for incoming data
+          characteristic!.setNotifyValue(true);
+          characteristic!.value.listen((List<int> value) {
+            String receivedMessage = String.fromCharCodes(value);
+            // Handle the received message as needed
+            print('Received message: $receivedMessage');
+
+            if (receivedMessage.toLowerCase() == 'plant needs water') {
+              // Show in-app notification for "plant needs water" (SnackBar)
+              _showSnackBar('Your plant needs water!');
+            } else if (receivedMessage.toLowerCase() == 'no water') {
+              // Show in-app notification for "no water" (SnackBar)
+              _showSnackBar('No water!');
+            }
+          });
+        }
+      });
+    });
+  }
+
+  // Helper method to show SnackBar
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey, // Set the key for the Scaffold
       appBar: AppBar(
         title: Text(
           'PlantCare',
@@ -63,7 +141,6 @@ class _MyHomePageState extends State<MyHomePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               // Soil Dropdown
-              // Soil Dropdown
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -75,8 +152,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     elevation: 5,
                     child: Padding(
                       padding: const EdgeInsets.all(8),
-                      child: Container(  // Wrap DropdownButton with Container
-                        alignment: Alignment.centerRight,  // Align the icon to the right
+                      child: Container(
+                        alignment: Alignment.centerRight,
                         child: DropdownButton<String>(
                           value: selectedSoil,
                           onChanged: (String? newValue) {
@@ -88,8 +165,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             return DropdownMenuItem<String>(
                               value: soil,
                               child: Container(
-                                alignment: Alignment.centerLeft,  // Align the text to the right
-                                constraints: BoxConstraints(maxWidth: 300),  // Set the maximum width
+                                alignment: Alignment.centerLeft,
+                                constraints: BoxConstraints(maxWidth: 300),
                                 child: Text(
                                   soil,
                                   style: TextStyle(color: Colors.black),
@@ -97,14 +174,13 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                             );
                           }).toList(),
-                          icon: Icon(Icons.arrow_drop_down), // Customize the arrow icon
+                          icon: Icon(Icons.arrow_drop_down),
                         ),
                       ),
                     ),
                   ),
                 ],
               ),
-
 
               SizedBox(height: 20),
 
@@ -128,8 +204,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           return DropdownMenuItem<String>(
                             value: plant,
                             child: Container(
-                              alignment: Alignment.centerLeft,  // Align the text to the right
-                              constraints: BoxConstraints(maxWidth: 300),  // Set the maximum width
+                              alignment: Alignment.centerLeft,
+                              constraints: BoxConstraints(maxWidth: 300),
                               child: Text(
                                 plant,
                                 style: TextStyle(color: Colors.black),
@@ -165,8 +241,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           return DropdownMenuItem<String>(
                             value: stage,
                             child: Container(
-                              alignment: Alignment.centerLeft,  // Align the text to the right
-                              constraints: BoxConstraints(maxWidth: 300),  // Set the maximum width
+                              alignment: Alignment.centerLeft,
+                              constraints: BoxConstraints(maxWidth: 300),
                               child: Text(
                                 stage,
                                 style: TextStyle(color: Colors.black),
@@ -202,6 +278,10 @@ class _MyHomePageState extends State<MyHomePage> {
               ElevatedButton(
                 onPressed: () {
                   // Handle submission here
+                  if (characteristic != null) {
+                    // Send "100" (representing 100ml) to Arduino
+                    characteristic!.write(utf8.encode('100'));
+                  }
                 },
                 child: Text('Submit'),
               ),
