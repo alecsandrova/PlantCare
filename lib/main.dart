@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 
 const String bluetoothCharacteristicUUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
 
@@ -124,15 +126,17 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey, // Set the key for the Scaffold
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Text(
           'PlantCare',
           style: TextStyle(
-            fontSize: 24,
+            fontSize: 30,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
+        backgroundColor: Colors.blue,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -146,10 +150,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   Text(
                     "Select Soil",
-                    style: TextStyle(fontSize: 18),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
                   ),
                   Card(
                     elevation: 5,
+                    color: Colors.lightBlue.shade50,
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: Container(
@@ -169,12 +178,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                 constraints: BoxConstraints(maxWidth: 300),
                                 child: Text(
                                   soil,
-                                  style: TextStyle(color: Colors.black),
+                                  style: TextStyle(color: Colors.blue),
                                 ),
                               ),
                             );
                           }).toList(),
-                          icon: Icon(Icons.arrow_drop_down),
+                          icon: Icon(Icons.arrow_drop_down, color: Colors.blue),
+                          style: TextStyle(color: Colors.blue, fontSize: 16),
+                          dropdownColor: Colors.blue.shade100,
                         ),
                       ),
                     ),
@@ -188,9 +199,17 @@ class _MyHomePageState extends State<MyHomePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text("Select Plant", style: TextStyle(fontSize: 18)),
+                  Text(
+                      "Select Plant",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue, // Blue color for the title
+                      )
+                  ),
                   Card(
                     elevation: 5,
+                    color: Colors.lightBlue.shade50, // Light blue background for the card
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: DropdownButton<String>(
@@ -208,16 +227,20 @@ class _MyHomePageState extends State<MyHomePage> {
                               constraints: BoxConstraints(maxWidth: 300),
                               child: Text(
                                 plant,
-                                style: TextStyle(color: Colors.black),
+                                style: TextStyle(color: Colors.blue), // Blue text for dropdown items
                               ),
                             ),
                           );
                         }).toList(),
+                        style: TextStyle(color: Colors.blue, fontSize: 16), // Style for the selected item
+                        dropdownColor: Colors.blue.shade100, // Background color for dropdown items
+                        iconEnabledColor: Colors.blue, // Dropdown icon color
                       ),
                     ),
                   ),
                 ],
               ),
+
 
               SizedBox(height: 20),
 
@@ -225,9 +248,17 @@ class _MyHomePageState extends State<MyHomePage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text("Select Growth Stage", style: TextStyle(fontSize: 18)),
+                  Text(
+                      "Select Growth Stage",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      )
+                  ),
                   Card(
                     elevation: 5,
+                    color: Colors.lightBlue.shade50,
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: DropdownButton<String>(
@@ -245,20 +276,24 @@ class _MyHomePageState extends State<MyHomePage> {
                               constraints: BoxConstraints(maxWidth: 300),
                               child: Text(
                                 stage,
-                                style: TextStyle(color: Colors.black),
+                                style: TextStyle(color: Colors.blue),
                               ),
                             ),
                           );
                         }).toList(),
+                        style: TextStyle(color: Colors.blue, fontSize: 16),
+                        dropdownColor: Colors.blue.shade100,
+                        iconEnabledColor: Colors.blue,
                       ),
                     ),
                   ),
                 ],
               ),
 
+
               SizedBox(height: 20),
 
-              // Display selected items
+
               Text(
                 'Selected Soil: ${selectedSoil ?? "Select a Soil"}',
                 style: TextStyle(fontSize: 18),
@@ -283,7 +318,23 @@ class _MyHomePageState extends State<MyHomePage> {
                     characteristic!.write(utf8.encode('100'));
                   }
                 },
-                child: Text('Submit'),
+                child: Text(
+                  'Submit',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  primary: Colors.blue,
+                  onPrimary: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  elevation: 5,
+                ),
               ),
             ],
           ),
