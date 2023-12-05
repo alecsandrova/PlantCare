@@ -15,6 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme:ThemeData(fontFamily: 'Roboto'),
       home: MyHomePage(),
     );
   }
@@ -130,10 +131,12 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(
           'PlantCare',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+          style: GoogleFonts.roboto(
+            textStyle: TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         backgroundColor: Colors.blue,
