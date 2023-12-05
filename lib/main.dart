@@ -161,7 +161,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   Card(
                     elevation: 5,
-                    color: Colors.lightBlue.shade50,
+                    color: Colors.white,
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: Container(
@@ -188,7 +188,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           }).toList(),
                           icon: Icon(Icons.arrow_drop_down, color: Colors.blue),
                           style: TextStyle(color: Colors.blue, fontSize: 16),
-                          dropdownColor: Colors.blue.shade100,
+                          dropdownColor: Colors.white,
                         ),
                       ),
                     ),
@@ -207,12 +207,12 @@ class _MyHomePageState extends State<MyHomePage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue, // Blue color for the title
+                        color: Colors.blue,
                       )
                   ),
                   Card(
                     elevation: 5,
-                    color: Colors.lightBlue.shade50, // Light blue background for the card
+                    color: Colors.white,
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: DropdownButton<String>(
@@ -230,14 +230,14 @@ class _MyHomePageState extends State<MyHomePage> {
                               constraints: BoxConstraints(maxWidth: 300),
                               child: Text(
                                 plant,
-                                style: TextStyle(color: Colors.blue), // Blue text for dropdown items
+                                style: TextStyle(color: Colors.blue),
                               ),
                             ),
                           );
                         }).toList(),
-                        style: TextStyle(color: Colors.blue, fontSize: 16), // Style for the selected item
-                        dropdownColor: Colors.blue.shade100, // Background color for dropdown items
-                        iconEnabledColor: Colors.blue, // Dropdown icon color
+                        style: TextStyle(color: Colors.blue, fontSize: 16),
+                        dropdownColor: Colors.white,
+                        iconEnabledColor: Colors.blue,
                       ),
                     ),
                   ),
@@ -261,7 +261,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   Card(
                     elevation: 5,
-                    color: Colors.lightBlue.shade50,
+                    color: Colors.white,
                     child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: DropdownButton<String>(
@@ -285,7 +285,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           );
                         }).toList(),
                         style: TextStyle(color: Colors.blue, fontSize: 16),
-                        dropdownColor: Colors.blue.shade100,
+                        dropdownColor: Colors.white,
                         iconEnabledColor: Colors.blue,
                       ),
                     ),
