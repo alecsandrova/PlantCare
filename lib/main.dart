@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-// import 'package:flutter_blue/flutter_blue.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
@@ -10,6 +8,7 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 const String bluetoothCharacteristicUUID =
     '00001101-0000-1000-8000-00805F9B34FB';
 const String targetDeviceMacAddress = '00:22:12:01:8D:E7';
+
 void main() {
   runApp(MyApp());
 }
@@ -51,19 +50,13 @@ class _MyHomePageState extends State<MyHomePage> {
   String? selectedPlant;
   String? selectedGrowthStage;
 
-  TextEditingController plantController = TextEditingController();
-  bool showPlantSuggestions = false;
 
-
-  //
-  // FlutterBlue flutterBlue = FlutterBlue.instance;
-  BluetoothDevice? targetDevice;
-  // BluetoothCharacteristic? characteristic;
   int scanAttempts = 0;
-  final int maxScanAttempts = 10; // Maximum number of scan attempts
-  final int scanTimeoutSeconds = 10; // Duration of each scan
+  final int maxScanAttempts = 10;
+  final int scanTimeoutSeconds = 10;
   String lastLogMessage = '';
 
+  BluetoothDevice? targetDevice;
   FlutterBluetoothSerial bluetoothSerial = FlutterBluetoothSerial.instance;
   BluetoothConnection? connection;
   List<BluetoothDevice> devices = [];
@@ -77,6 +70,8 @@ class _MyHomePageState extends State<MyHomePage> {
       initBluetooth();
     });
   }
+
+
   void sendData(String data) {
     if (connection != null && connection!.isConnected) {
       connection!.output.add(utf8.encode(data));
@@ -88,9 +83,11 @@ class _MyHomePageState extends State<MyHomePage> {
       addLogMessage('No connected device');
     }
   }
+
+
   void retryScan() {
-    print('retrying');
-    addLogMessage('retrying');
+    print('Retrying scan...');
+    addLogMessage('Retrying scan...');
     setState(() {
       scanAttempts = 0;
       targetDevice = null;
@@ -113,7 +110,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
-
   Future<void> requestBluetoothConnectPermission() async {
     var status = await Permission.bluetoothConnect.status;
     if (!status.isGranted) {
@@ -122,11 +118,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
-
   Future<void> initBluetooth() async {
     var isBluetoothEnabled = await bluetoothSerial.isEnabled;
     if (!isBluetoothEnabled!) {
-      // If not enabled, ask the user to enable it
       await bluetoothSerial.requestEnable();
       addLogMessage('Bluetooth enabled');
       print('Bluetooth enabled');
@@ -135,19 +129,19 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void discoverDevices() async {
-    print('discover devices');
-    addLogMessage('discover devices');
+    print('Discovering devices...');
+    addLogMessage('Discovering devices...');
     // Get the list of paired devices
     devices = await bluetoothSerial.getBondedDevices();
     setState(() {});
 
     // Connect to the target device by its MAC address
     for (BluetoothDevice device in devices) {
-      print('device:'+  device.address);
-      addLogMessage('device:'+  device.address);
+      print('Discovered device: '+  device.address);
+      addLogMessage('Discovered device:: '+  device.address);
       if (device.address == targetDeviceMacAddress) {
-        print('found device'+  device.address );
-        addLogMessage('found device' +  device.address);
+        print('Found device '+  device.address );
+        addLogMessage('Found device ' +  device.address);
         connectToDevice(device);
         break;
       }
@@ -162,11 +156,14 @@ class _MyHomePageState extends State<MyHomePage> {
       print('Connected to the device');
 
       connection!.input!.listen((Uint8List data) {
-        // Handle data from device
         String receivedMessage = String.fromCharCodes(data);
-        print('Received message: $receivedMessage');
-        addLogMessage('Received message: $receivedMessage');
-        // Additional logic for handling incoming data
+        if(receivedMessage == "Plant needs water!")
+          addLogMessage("Plant needs water!");
+        else {
+          print('Received message: $receivedMessage');
+          addLogMessage('Received message: $receivedMessage');
+        }
+
       }).onDone(() {
         // Handle connection being closed
         print('Disconnected by remote request');
@@ -180,12 +177,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    // Be sure to cancel connection when finished
     connection?.dispose();
     super.dispose();
   }
 
-  // Helper method to show SnackBar
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -272,8 +267,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
 
                   SizedBox(height: 20),
-
-                  // Plant Dropdown with Search Bar
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -319,7 +312,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   SizedBox(height: 20),
 
-                  // Growth Stage Dropdown
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -380,7 +372,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   SizedBox(height: 20),
 
-                  // Submit Button
                   ElevatedButton(
                     onPressed: () {
                       sendData('100'); // Sending '100' as an example
