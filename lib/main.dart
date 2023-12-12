@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_blue/flutter_blue.dart';
+// import 'package:flutter_blue/flutter_blue.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
-
-const String bluetoothCharacteristicUUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
-
+const String bluetoothCharacteristicUUID =
+    '00001101-0000-1000-8000-00805F9B34FB';
+const String targetDeviceMacAddress = '00:22:12:01:8D:E7';
 void main() {
   runApp(MyApp());
 }
@@ -15,7 +18,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme:ThemeData(fontFamily: 'Roboto'),
+      theme: ThemeData(fontFamily: 'Roboto'),
       home: MyHomePage(),
     );
   }
@@ -51,67 +54,135 @@ class _MyHomePageState extends State<MyHomePage> {
   TextEditingController plantController = TextEditingController();
   bool showPlantSuggestions = false;
 
-  FlutterBlue flutterBlue = FlutterBlue.instance;
+
+  //
+  // FlutterBlue flutterBlue = FlutterBlue.instance;
   BluetoothDevice? targetDevice;
-  BluetoothCharacteristic? characteristic;
+  // BluetoothCharacteristic? characteristic;
+  int scanAttempts = 0;
+  final int maxScanAttempts = 10; // Maximum number of scan attempts
+  final int scanTimeoutSeconds = 10; // Duration of each scan
+  String lastLogMessage = '';
+
+  FlutterBluetoothSerial bluetoothSerial = FlutterBluetoothSerial.instance;
+  BluetoothConnection? connection;
+  List<BluetoothDevice> devices = [];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
-    initBluetooth();
+    requestBluetoothConnectPermission().then((_) {
+      initBluetooth();
+    });
   }
+  void sendData(String data) {
+    if (connection != null && connection!.isConnected) {
+      connection!.output.add(utf8.encode(data));
+      // It's a good practice to wait for data to be sent before closing the connection
+      connection!.output.allSent.then((_) {
+        addLogMessage('Data sent' + utf8.encode(data).toString() );
+      });
+    } else {
+      addLogMessage('No connected device');
+    }
+  }
+  void retryScan() {
+    print('retrying');
+    addLogMessage('retrying');
+    setState(() {
+      scanAttempts = 0;
+      targetDevice = null;
+      lastLogMessage = '';
+    });
+    discoverDevices();
+  }
+
+  void addLogMessage(String message) {
+    setState(() {
+      lastLogMessage = message;
+    });
+  }
+
+  Future<void> requestBluetoothPermission() async {
+    var status = await Permission.bluetoothScan.status;
+    if (!status.isGranted) {
+      await Permission.bluetoothScan.request();
+    }
+  }
+
+
+
+  Future<void> requestBluetoothConnectPermission() async {
+    var status = await Permission.bluetoothConnect.status;
+    if (!status.isGranted) {
+      await Permission.bluetoothConnect.request();
+    }
+  }
+
+
 
   Future<void> initBluetooth() async {
-    await flutterBlue.isOn;
-    flutterBlue.scanResults.listen((List<ScanResult> results) {
-      for (ScanResult result in results) {
-        if (result.device.name == 'YourArduinoBluetoothName') {
-          setState(() {
-            targetDevice = result.device;
-          });
-          return;
-        }
-      }
-    });
-
-    targetDevice?.connect();
-    targetDevice?.state.listen((BluetoothDeviceState state) {
-      if (state == BluetoothDeviceState.connected) {
-        discoverServices();
-      }
-    });
+    var isBluetoothEnabled = await bluetoothSerial.isEnabled;
+    if (!isBluetoothEnabled!) {
+      // If not enabled, ask the user to enable it
+      await bluetoothSerial.requestEnable();
+      addLogMessage('Bluetooth enabled');
+      print('Bluetooth enabled');
+    }
+    discoverDevices();
   }
 
-  Future<void> discoverServices() async {
-    List<BluetoothService> services = await targetDevice!.discoverServices();
-    services.forEach((service) {
-      service.characteristics.forEach((char) {
-        print('Characteristic UUID: ${char.uuid}');
-        if (char.uuid.toString() == bluetoothCharacteristicUUID) {
-          setState(() {
-            characteristic = char;
-          });
+  void discoverDevices() async {
+    print('discover devices');
+    addLogMessage('discover devices');
+    // Get the list of paired devices
+    devices = await bluetoothSerial.getBondedDevices();
+    setState(() {});
 
-          // Listen for incoming data
-          characteristic!.setNotifyValue(true);
-          characteristic!.value.listen((List<int> value) {
-            String receivedMessage = String.fromCharCodes(value);
-            // Handle the received message as needed
-            print('Received message: $receivedMessage');
+    // Connect to the target device by its MAC address
+    for (BluetoothDevice device in devices) {
+      print('device:'+  device.address);
+      addLogMessage('device:'+  device.address);
+      if (device.address == targetDeviceMacAddress) {
+        print('found device'+  device.address );
+        addLogMessage('found device' +  device.address);
+        connectToDevice(device);
+        break;
+      }
+    }
+  }
 
-            if (receivedMessage.toLowerCase() == 'plant needs water') {
-              // Show in-app notification for "plant needs water" (SnackBar)
-              _showSnackBar('Your plant needs water!');
-            } else if (receivedMessage.toLowerCase() == 'no water') {
-              // Show in-app notification for "no water" (SnackBar)
-              _showSnackBar('No water!');
-            }
-          });
-        }
+  void connectToDevice(BluetoothDevice device) async {
+    try {
+      connection = await BluetoothConnection.toAddress(device.address);
+      setState(() {});
+      addLogMessage('Connected to the device');
+      print('Connected to the device');
+
+      connection!.input!.listen((Uint8List data) {
+        // Handle data from device
+        String receivedMessage = String.fromCharCodes(data);
+        print('Received message: $receivedMessage');
+        addLogMessage('Received message: $receivedMessage');
+        // Additional logic for handling incoming data
+      }).onDone(() {
+        // Handle connection being closed
+        print('Disconnected by remote request');
+        addLogMessage('Disconnected by remote request');
       });
-    });
+    } catch (exception) {
+      print('Cannot connect, exception occurred');
+      addLogMessage('Cannot connect, exception occurred');
+    }
+  }
+
+  @override
+  void dispose() {
+    // Be sure to cancel connection when finished
+    connection?.dispose();
+    super.dispose();
   }
 
   // Helper method to show SnackBar
@@ -143,203 +214,219 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              // Soil Dropdown
-              Column(
+        child: SingleChildScrollView(
+          child: Center(
+            child: Center(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    "Select Soil",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                  Card(
-                    elevation: 5,
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Container(
-                        alignment: Alignment.centerRight,
-                        child: DropdownButton<String>(
-                          value: selectedSoil,
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              selectedSoil = newValue;
-                            });
-                          },
-                          items: soilTypes.map((String soil) {
-                            return DropdownMenuItem<String>(
-                              value: soil,
-                              child: Container(
-                                alignment: Alignment.centerLeft,
-                                constraints: BoxConstraints(maxWidth: 300),
-                                child: Text(
-                                  soil,
-                                  style: TextStyle(color: Colors.blue),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          icon: Icon(Icons.arrow_drop_down, color: Colors.blue),
-                          style: TextStyle(color: Colors.blue, fontSize: 16),
-                          dropdownColor: Colors.white,
+                children: <Widget>[
+                  // Soil Dropdown
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        "Select Soil",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
                         ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 20),
-
-              // Plant Dropdown with Search Bar
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                      "Select Plant",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      )
-                  ),
-                  Card(
-                    elevation: 5,
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: DropdownButton<String>(
-                        value: selectedPlant,
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            selectedPlant = newValue;
-                          });
-                        },
-                        items: plantTypes.map((String plant) {
-                          return DropdownMenuItem<String>(
-                            value: plant,
-                            child: Container(
-                              alignment: Alignment.centerLeft,
-                              constraints: BoxConstraints(maxWidth: 300),
-                              child: Text(
-                                plant,
-                                style: TextStyle(color: Colors.blue),
-                              ),
+                      Card(
+                        elevation: 5,
+                        color: Colors.white,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Container(
+                            alignment: Alignment.centerRight,
+                            child: DropdownButton<String>(
+                              value: selectedSoil,
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedSoil = newValue;
+                                });
+                              },
+                              items: soilTypes.map((String soil) {
+                                return DropdownMenuItem<String>(
+                                  value: soil,
+                                  child: Container(
+                                    alignment: Alignment.centerLeft,
+                                    constraints: BoxConstraints(maxWidth: 300),
+                                    child: Text(
+                                      soil,
+                                      style: TextStyle(color: Colors.blue),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              icon: Icon(Icons.arrow_drop_down,
+                                  color: Colors.blue),
+                              style:
+                                  TextStyle(color: Colors.blue, fontSize: 16),
+                              dropdownColor: Colors.white,
                             ),
-                          );
-                        }).toList(),
-                        style: TextStyle(color: Colors.blue, fontSize: 16),
-                        dropdownColor: Colors.white,
-                        iconEnabledColor: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 20),
+
+                  // Plant Dropdown with Search Bar
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text("Select Plant",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          )),
+                      Card(
+                        elevation: 5,
+                        color: Colors.white,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: DropdownButton<String>(
+                            value: selectedPlant,
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedPlant = newValue;
+                              });
+                            },
+                            items: plantTypes.map((String plant) {
+                              return DropdownMenuItem<String>(
+                                value: plant,
+                                child: Container(
+                                  alignment: Alignment.centerLeft,
+                                  constraints: BoxConstraints(maxWidth: 300),
+                                  child: Text(
+                                    plant,
+                                    style: TextStyle(color: Colors.blue),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            style: TextStyle(color: Colors.blue, fontSize: 16),
+                            dropdownColor: Colors.white,
+                            iconEnabledColor: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 20),
+
+                  // Growth Stage Dropdown
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text("Select Growth Stage",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          )),
+                      Card(
+                        elevation: 5,
+                        color: Colors.white,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: DropdownButton<String>(
+                            value: selectedGrowthStage,
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedGrowthStage = newValue;
+                              });
+                            },
+                            items: growthStages.map((String stage) {
+                              return DropdownMenuItem<String>(
+                                value: stage,
+                                child: Container(
+                                  alignment: Alignment.centerLeft,
+                                  constraints: BoxConstraints(maxWidth: 300),
+                                  child: Text(
+                                    stage,
+                                    style: TextStyle(color: Colors.blue),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            style: TextStyle(color: Colors.blue, fontSize: 16),
+                            dropdownColor: Colors.white,
+                            iconEnabledColor: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 20),
+
+                  Text(
+                    'Selected Soil: ${selectedSoil ?? "Select a Soil"}',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  Text(
+                    'Selected Plant: ${selectedPlant ?? "Select a Plant"}',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  Text(
+                    'Selected Growth Stage: ${selectedGrowthStage ?? "Select a Growth Stage"}',
+                    style: TextStyle(fontSize: 18),
+                  ),
+
+                  SizedBox(height: 20),
+
+                  // Submit Button
+                  ElevatedButton(
+                    onPressed: () {
+                      sendData('100'); // Sending '100' as an example
+                    },
+                    child: Text(
+                      'Submit',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ],
-              ),
-
-
-              SizedBox(height: 20),
-
-              // Growth Stage Dropdown
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                      "Select Growth Stage",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      )
-                  ),
-                  Card(
-                    elevation: 5,
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: DropdownButton<String>(
-                        value: selectedGrowthStage,
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            selectedGrowthStage = newValue;
-                          });
-                        },
-                        items: growthStages.map((String stage) {
-                          return DropdownMenuItem<String>(
-                            value: stage,
-                            child: Container(
-                              alignment: Alignment.centerLeft,
-                              constraints: BoxConstraints(maxWidth: 300),
-                              child: Text(
-                                stage,
-                                style: TextStyle(color: Colors.blue),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                        style: TextStyle(color: Colors.blue, fontSize: 16),
-                        dropdownColor: Colors.white,
-                        iconEnabledColor: Colors.blue,
+                    style: ElevatedButton.styleFrom(
+                      primary: Colors.blue,
+                      onPrimary: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      elevation: 5,
+                    ),
+                  ),
+                  SizedBox(height: 20),
+
+                  Text("Last Log Message:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      lastLogMessage,
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  Text("Target device: 00:22:12:01:8d:e7"),
+                  ElevatedButton(
+                    onPressed: retryScan,
+                    child: Text('Retry Scan'),
+                    style: ElevatedButton.styleFrom(
+                      primary: Colors.blue,
+                      onPrimary: Colors.white,
                     ),
                   ),
                 ],
               ),
-
-
-              SizedBox(height: 20),
-
-
-              Text(
-                'Selected Soil: ${selectedSoil ?? "Select a Soil"}',
-                style: TextStyle(fontSize: 18),
-              ),
-              Text(
-                'Selected Plant: ${selectedPlant ?? "Select a Plant"}',
-                style: TextStyle(fontSize: 18),
-              ),
-              Text(
-                'Selected Growth Stage: ${selectedGrowthStage ?? "Select a Growth Stage"}',
-                style: TextStyle(fontSize: 18),
-              ),
-
-              SizedBox(height: 20),
-
-              // Submit Button
-              ElevatedButton(
-                onPressed: () {
-                  // Handle submission here
-                  if (characteristic != null) {
-                    // Send "100" (representing 100ml) to Arduino
-                    characteristic!.write(utf8.encode('100'));
-                  }
-                },
-                child: Text(
-                  'Submit',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  primary: Colors.blue,
-                  onPrimary: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  elevation: 5,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
