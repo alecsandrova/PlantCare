@@ -12,7 +12,7 @@ PlantCare is a mobile application designed to work in conjunction with an Arduin
 
 ## Requirements
 - Flutter environment setup.
-- `flutter_blue` package.
+- `flutter_bluetooth_serial` package.
 - Arduino setup with Bluetooth capability.
 
 ## Installation
