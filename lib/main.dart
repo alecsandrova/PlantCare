@@ -37,7 +37,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<String> plantTypes = [
     "Dragonier (Dracaena marginata)",
     "Muscata (Pelargonium)",
-    "Planta dinozaur (Zamioculcas zamiifolia) ",
+    "Planta dinozaur (Zamioculcas zamiifolia)",
     "Floarea flamingo (Anthurium mix)",
     "Crizantema (Chrysanthemum Zembla alb)"
   ];
@@ -45,6 +45,14 @@ class _MyHomePageState extends State<MyHomePage> {
     "Perioada de creștere activă (primăvara și vara)",
     "Perioada de repaus (toamna și iarna):"
   ];
+
+  Map<String, String> plantDataMap = {
+    "Dragonier (Dracaena marginata)": "10",
+    "Muscata (Pelargonium)": "5",
+    "Planta dinozaur (Zamioculcas zamiifolia)": "7",
+    "Floarea flamingo (Anthurium mix)": "3",
+    "Crizantema (Chrysanthemum Zembla alb)": "15",
+  };
 
   String? selectedSoil;
   String? selectedPlant;
@@ -77,13 +85,28 @@ class _MyHomePageState extends State<MyHomePage> {
       connection!.output.add(utf8.encode(data));
       // It's a good practice to wait for data to be sent before closing the connection
       connection!.output.allSent.then((_) {
-        addLogMessage('Data sent' + utf8.encode(data).toString() );
+        addLogMessage('Data sent' + data);
       });
     } else {
       addLogMessage('No connected device');
     }
   }
-
+  // void sendData(String data) {
+  //   if (connection != null && connection!.isConnected) {
+  //     // Convert the String to a Uint8List
+  //     var bytes = Uint8List.fromList(data.codeUnits);
+  //
+  //     // Send the byte data
+  //     connection!.output.add(bytes);
+  //
+  //     // It's a good practice to wait for data to be sent before closing the connection
+  //     connection!.output.allSent.then((_) {
+  //       addLogMessage('Data sent: $data');
+  //     });
+  //   } else {
+  //     addLogMessage('No connected device');
+  //   }
+  // }
 
   void retryScan() {
     print('Retrying scan...');
@@ -119,6 +142,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   Future<void> initBluetooth() async {
+    // Request necessary Bluetooth permissions at runtime
+    await requestBluetoothPermissions();
+
     var isBluetoothEnabled = await bluetoothSerial.isEnabled;
     if (!isBluetoothEnabled!) {
       await bluetoothSerial.requestEnable();
@@ -126,6 +152,18 @@ class _MyHomePageState extends State<MyHomePage> {
       print('Bluetooth enabled');
     }
     discoverDevices();
+  }
+
+  Future<void> requestBluetoothPermissions() async {
+    var scanPermission = await Permission.bluetoothScan.status;
+    if (!scanPermission.isGranted) {
+      await Permission.bluetoothScan.request();
+    }
+
+    var connectPermission = await Permission.bluetoothConnect.status;
+    if (!connectPermission.isGranted) {
+      await Permission.bluetoothConnect.request();
+    }
   }
 
   void discoverDevices() async {
@@ -170,8 +208,8 @@ class _MyHomePageState extends State<MyHomePage> {
         addLogMessage('Disconnected by remote request');
       });
     } catch (exception) {
-      print('Cannot connect, exception occurred');
-      addLogMessage('Cannot connect, exception occurred');
+      print('Cannot connect, exception occurred: $exception');
+      addLogMessage('Cannot connect, exception occurred',);
     }
   }
 
@@ -374,7 +412,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   ElevatedButton(
                     onPressed: () {
-                      sendData('100'); // Sending '100' as an example
+                      if (selectedPlant != null && plantDataMap.containsKey(selectedPlant)) {
+                        String dataToSend = plantDataMap[selectedPlant]!;
+                        sendData(dataToSend);
+                      } else {
+                        // Handle the case where no plant is selected or the selected plant is not in the map
+                        addLogMessage('Please select a plant');
+                      }
                     },
                     child: Text(
                       'Submit',
