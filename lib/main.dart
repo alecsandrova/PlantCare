@@ -79,6 +79,52 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  int calculateWater(String? selectedSoil, String? selectedPlant, String? selectedGrowthStage) {
+    // Define the base water requirements for each plant and growth stage combination
+    Map<String, int> baseWaterRequirements = {
+      "Dragonier (Dracaena marginata)Active": 300,
+      "Dragonier (Dracaena marginata)Dormant": 175,
+      "Muscata (Pelargonium)Active": 250,
+      "Muscata (Pelargonium)Dormant": 175,
+      "Planta dinozaur (Zamioculcas zamiifolia)Active": 250,
+      "Planta dinozaur (Zamioculcas zamiifolia)Dormant": 175,
+      "Floarea flamingo (Anthurium mix)Active": 250,
+      "Floarea flamingo (Anthurium mix)Dormant": 175,
+      "Crizantema (Chrysanthemum Zembla alb)Active": 250,
+      "Crizantema (Chrysanthemum Zembla alb)Dormant": 175
+    };
+
+    // Define the soil adjustment factors
+    Map<String, double> soilAdjustmentFactors = {
+      "Sol bine drenat pentru plante suculente sau cactuși": 1.0,
+      "Amestec de pământ de grădină, nisip și material de drenaj": 1.1,
+      "Amestec de sol pentru plante cu flori sau plante de apartament": 0.9
+    };
+
+    // Define a function to get the key for the waterRequirements map
+    String getKey(String? plant, String? growthStage) {
+      String stage = growthStage!.contains("activă") ? "Active" : "Dormant";
+      return "$plant$stage";
+    }
+
+    // Use the getKey function to get the correct key for the waterRequirements map
+    String key = getKey(selectedPlant, selectedGrowthStage);
+
+    // Get the base water requirement from the map
+    int baseWaterRequirement = baseWaterRequirements[key] ?? 0;
+
+    // Get the soil adjustment factor
+    double soilFactor = soilAdjustmentFactors[selectedSoil] ?? 1.0;
+
+    // Adjust the water requirement based on the soil type
+    int adjustedWaterRequirement = (baseWaterRequirement * soilFactor).round();
+
+    // Calculate the number of pumps (1 pump = 25ml)
+    int numberOfPumps = (adjustedWaterRequirement / 25).ceil();
+
+    return numberOfPumps;
+  }
+
 
   void sendData(String data) {
     if (connection != null && connection!.isConnected) {
@@ -412,12 +458,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   ElevatedButton(
                     onPressed: () {
-                      if (selectedPlant != null && plantDataMap.containsKey(selectedPlant)) {
-                        String dataToSend = plantDataMap[selectedPlant]!;
+                      if (selectedPlant != null && selectedSoil != null && selectedGrowthStage != null) {
+                        int pumps = calculateWater(selectedSoil, selectedPlant, selectedGrowthStage);
+                        String dataToSend = pumps.toString();
                         sendData(dataToSend);
                       } else {
-                        // Handle the case where no plant is selected or the selected plant is not in the map
-                        addLogMessage('Please select a plant');
+                        // Handle the case where not all selections are made
+                        addLogMessage('Please select soil, plant, and growth stage');
                       }
                     },
                     child: Text(
