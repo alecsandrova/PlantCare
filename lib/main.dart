@@ -46,18 +46,9 @@ class _MyHomePageState extends State<MyHomePage> {
     "Perioada de repaus (toamna și iarna):"
   ];
 
-  Map<String, String> plantDataMap = {
-    "Dragonier (Dracaena marginata)": "10",
-    "Muscata (Pelargonium)": "5",
-    "Planta dinozaur (Zamioculcas zamiifolia)": "7",
-    "Floarea flamingo (Anthurium mix)": "3",
-    "Crizantema (Chrysanthemum Zembla alb)": "15",
-  };
-
   String? selectedSoil;
   String? selectedPlant;
   String? selectedGrowthStage;
-
 
   int scanAttempts = 0;
   final int maxScanAttempts = 10;
@@ -79,8 +70,8 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  int calculateWater(String? selectedSoil, String? selectedPlant, String? selectedGrowthStage) {
-    // Define the base water requirements for each plant and growth stage combination
+  int calculateWater(String? selectedSoil, String? selectedPlant,
+      String? selectedGrowthStage) {
     Map<String, int> baseWaterRequirements = {
       "Dragonier (Dracaena marginata)Active": 300,
       "Dragonier (Dracaena marginata)Dormant": 175,
@@ -94,37 +85,30 @@ class _MyHomePageState extends State<MyHomePage> {
       "Crizantema (Chrysanthemum Zembla alb)Dormant": 175
     };
 
-    // Define the soil adjustment factors
     Map<String, double> soilAdjustmentFactors = {
       "Sol bine drenat pentru plante suculente sau cactuși": 1.0,
       "Amestec de pământ de grădină, nisip și material de drenaj": 1.1,
       "Amestec de sol pentru plante cu flori sau plante de apartament": 0.9
     };
 
-    // Define a function to get the key for the waterRequirements map
     String getKey(String? plant, String? growthStage) {
       String stage = growthStage!.contains("activă") ? "Active" : "Dormant";
       return "$plant$stage";
     }
 
-    // Use the getKey function to get the correct key for the waterRequirements map
     String key = getKey(selectedPlant, selectedGrowthStage);
 
-    // Get the base water requirement from the map
     int baseWaterRequirement = baseWaterRequirements[key] ?? 0;
 
-    // Get the soil adjustment factor
     double soilFactor = soilAdjustmentFactors[selectedSoil] ?? 1.0;
 
-    // Adjust the water requirement based on the soil type
     int adjustedWaterRequirement = (baseWaterRequirement * soilFactor).round();
 
-    // Calculate the number of pumps (1 pump = 25ml)
+    // calculate the number of pumps (1 pump = 25ml)
     int numberOfPumps = (adjustedWaterRequirement / 25).ceil();
 
     return numberOfPumps;
   }
-
 
   void sendData(String data) {
     if (connection != null && connection!.isConnected) {
@@ -137,22 +121,6 @@ class _MyHomePageState extends State<MyHomePage> {
       addLogMessage('No connected device');
     }
   }
-  // void sendData(String data) {
-  //   if (connection != null && connection!.isConnected) {
-  //     // Convert the String to a Uint8List
-  //     var bytes = Uint8List.fromList(data.codeUnits);
-  //
-  //     // Send the byte data
-  //     connection!.output.add(bytes);
-  //
-  //     // It's a good practice to wait for data to be sent before closing the connection
-  //     connection!.output.allSent.then((_) {
-  //       addLogMessage('Data sent: $data');
-  //     });
-  //   } else {
-  //     addLogMessage('No connected device');
-  //   }
-  // }
 
   void retryScan() {
     print('Retrying scan...');
@@ -178,14 +146,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-
   Future<void> requestBluetoothConnectPermission() async {
     var status = await Permission.bluetoothConnect.status;
     if (!status.isGranted) {
       await Permission.bluetoothConnect.request();
     }
   }
-
 
   Future<void> initBluetooth() async {
     // Request necessary Bluetooth permissions at runtime
@@ -221,11 +187,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // Connect to the target device by its MAC address
     for (BluetoothDevice device in devices) {
-      print('Discovered device: '+  device.address);
-      addLogMessage('Discovered device:: '+  device.address);
+      print('Discovered device: ' + device.address);
+      addLogMessage('Discovered device:: ' + device.address);
       if (device.address == targetDeviceMacAddress) {
-        print('Found device '+  device.address );
-        addLogMessage('Found device ' +  device.address);
+        print('Found device ' + device.address);
+        addLogMessage('Found device ' + device.address);
         connectToDevice(device);
         break;
       }
@@ -241,13 +207,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
       connection!.input!.listen((Uint8List data) {
         String receivedMessage = String.fromCharCodes(data);
-        if(receivedMessage == "Plant needs water!")
+        if (receivedMessage == "Plant needs water!")
           addLogMessage("Plant needs water!");
         else {
           print('Received message: $receivedMessage');
           addLogMessage('Received message: $receivedMessage');
         }
-
       }).onDone(() {
         // Handle connection being closed
         print('Disconnected by remote request');
@@ -255,7 +220,9 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     } catch (exception) {
       print('Cannot connect, exception occurred: $exception');
-      addLogMessage('Cannot connect, exception occurred',);
+      addLogMessage(
+        'Cannot connect, exception occurred',
+      );
     }
   }
 
@@ -458,13 +425,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   ElevatedButton(
                     onPressed: () {
-                      if (selectedPlant != null && selectedSoil != null && selectedGrowthStage != null) {
-                        int pumps = calculateWater(selectedSoil, selectedPlant, selectedGrowthStage);
+                      if (selectedPlant != null &&
+                          selectedSoil != null &&
+                          selectedGrowthStage != null) {
+                        int pumps = calculateWater(
+                            selectedSoil, selectedPlant, selectedGrowthStage);
                         String dataToSend = pumps.toString();
                         sendData(dataToSend);
                       } else {
                         // Handle the case where not all selections are made
-                        addLogMessage('Please select soil, plant, and growth stage');
+                        addLogMessage(
+                            'Please select soil, plant, and growth stage');
                       }
                     },
                     child: Text(
@@ -488,7 +459,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   SizedBox(height: 20),
 
-                  Text("Last Log Message:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text("Last Log Message:",
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
 
                   Padding(
                     padding: const EdgeInsets.all(8.0),
