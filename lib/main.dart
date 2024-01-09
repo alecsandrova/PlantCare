@@ -1,3 +1,4 @@
+// Imports necessary libraries for Dart and Flutter functionalities
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -5,6 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
+
+
+// Constants for Bluetooth UUID and target device MAC address
+// These need to be changed for your own bluetooth module
 const String bluetoothCharacteristicUUID =
     '00001101-0000-1000-8000-00805F9B34FB';
 const String targetDeviceMacAddress = '00:22:12:01:8D:E7';
@@ -13,6 +18,8 @@ void main() {
   runApp(MyApp());
 }
 
+
+// The main app widget that sets up the theme and home page
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -23,12 +30,15 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// The home page widget, a stateful widget for dynamic content
 class MyHomePage extends StatefulWidget {
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
+// State class for the home page, managing UI and logic
 class _MyHomePageState extends State<MyHomePage> {
+  // Lists of options for soil types, plant types, and growth stages
   List<String> soilTypes = [
     "Sol bine drenat pentru plante suculente sau cactuși",
     "Amestec de pământ de grădină, nisip și material de drenaj",
@@ -46,14 +56,15 @@ class _MyHomePageState extends State<MyHomePage> {
     "Perioada de repaus (toamna și iarna):"
   ];
 
+  // Variables for user selections and Bluetooth connectivity
   String? selectedSoil;
   String? selectedPlant;
   String? selectedGrowthStage;
 
   int scanAttempts = 0;
-  final int maxScanAttempts = 10;
-  final int scanTimeoutSeconds = 10;
-  String lastLogMessage = '';
+  final int maxScanAttempts = 10; // number of attempts the app will make to connect to the bluetooth device
+  final int scanTimeoutSeconds = 10; //number of seconds a scan will take
+  String lastLogMessage = ''; // log messages used to give more details to the user
 
   BluetoothDevice? targetDevice;
   FlutterBluetoothSerial bluetoothSerial = FlutterBluetoothSerial.instance;
@@ -62,6 +73,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+// Initialization logic for requesting Bluetooth permissions and setup
   @override
   void initState() {
     super.initState();
@@ -70,8 +82,12 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  // Function that calculates the number of water pumps required for a given plant,
+  // based on its soil type, plant type, and growth stage.
   int calculateWater(String? selectedSoil, String? selectedPlant,
       String? selectedGrowthStage) {
+    // A map that holds the base water requirements for various combinations of plant types
+    // and their growth stages. Each combination has an associated water requirement value.
     Map<String, int> baseWaterRequirements = {
       "Dragonier (Dracaena marginata)Active": 300,
       "Dragonier (Dracaena marginata)Dormant": 175,
@@ -85,35 +101,50 @@ class _MyHomePageState extends State<MyHomePage> {
       "Crizantema (Chrysanthemum Zembla alb)Dormant": 175
     };
 
+    // A map that defines adjustment factors for different soil types. These factors
+    // are used to modify the base water requirements based on the soil characteristics.
     Map<String, double> soilAdjustmentFactors = {
       "Sol bine drenat pentru plante suculente sau cactuși": 1.0,
       "Amestec de pământ de grădină, nisip și material de drenaj": 1.1,
       "Amestec de sol pentru plante cu flori sau plante de apartament": 0.9
     };
 
+    // Defining a helper function 'getKey' to generate a key for accessing the water requirement data.
+    // This key is based on the plant type and its growth stage
     String getKey(String? plant, String? growthStage) {
+      // The growth stage is determined here. If the stage includes the word "activă",
+      // it is considered 'Active'; otherwise, it is 'Dormant'.
       String stage = growthStage!.contains("activă") ? "Active" : "Dormant";
       return "$plant$stage";
     }
 
+    // Generating the key using the selected plant and growth stage.
     String key = getKey(selectedPlant, selectedGrowthStage);
 
+    // Getting the base water requirement for the generated key.
+    // If the key does not exist in the map, it defaults to 0.
     int baseWaterRequirement = baseWaterRequirements[key] ?? 0;
 
+    // Getting the soil adjustment factor based on the selected soil type.
+    // If the selected soil type does not exist in the map, it defaults to 1.0.
     double soilFactor = soilAdjustmentFactors[selectedSoil] ?? 1.0;
 
+    // Calculating the adjusted water requirement by multiplying the base requirement
+    // by the soil factor. The result is then rounded to the nearest integer.
     int adjustedWaterRequirement = (baseWaterRequirement * soilFactor).round();
 
-    // calculate the number of pumps (1 pump = 25ml)
+    // Calculating the number of pumps required to pump the necessary water requirement.
+    // Assumes that one pump delivers 25ml of water. The result is rounded up
     int numberOfPumps = (adjustedWaterRequirement / 25).ceil();
 
+    // Returning the calculated number of pumps.
     return numberOfPumps;
   }
 
   void sendData(String data) {
     if (connection != null && connection!.isConnected) {
       connection!.output.add(utf8.encode(data));
-      // It's a good practice to wait for data to be sent before closing the connection
+      //wait for data to be sent before closing the connection
       connection!.output.allSent.then((_) {
         addLogMessage('Data sent' + data);
       });
@@ -201,19 +232,24 @@ class _MyHomePageState extends State<MyHomePage> {
   void connectToDevice(BluetoothDevice device) async {
     try {
       connection = await BluetoothConnection.toAddress(device.address);
+      // setState() is called here to trigger a rebuild of the widget
       setState(() {});
       addLogMessage('Connected to the device');
       print('Connected to the device');
 
+
+      //This line sets up a listener for incoming data on the Bluetooth connection.
+      // The '!' operator is known as the null assertion operator
+      // It's a way of asserting that these objects will definitely be non-null
       connection!.input!.listen((Uint8List data) {
         String receivedMessage = String.fromCharCodes(data);
-        if (receivedMessage == "Plant needs water!")
+        if (receivedMessage == "Plant needs water!")//
           addLogMessage("Plant needs water!");
         else {
           print('Received message: $receivedMessage');
           addLogMessage('Received message: $receivedMessage');
         }
-      }).onDone(() {
+      }).onDone(() {//
         // Handle connection being closed
         print('Disconnected by remote request');
         addLogMessage('Disconnected by remote request');
@@ -241,6 +277,8 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+
+  // UI build method for rendering the app's interface
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -258,6 +296,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         backgroundColor: Colors.blue,
       ),
+      // UI components like dropdowns, buttons, and text widgets
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
@@ -425,12 +464,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   ElevatedButton(
                     onPressed: () {
+                      // Check selections
                       if (selectedPlant != null &&
                           selectedSoil != null &&
                           selectedGrowthStage != null) {
+                        // pumps gets the number of water pumps it will send based on se selections made
                         int pumps = calculateWater(
                             selectedSoil, selectedPlant, selectedGrowthStage);
                         String dataToSend = pumps.toString();
+                        // data is sent to the bluetooth module
                         sendData(dataToSend);
                       } else {
                         // Handle the case where not all selections are made
